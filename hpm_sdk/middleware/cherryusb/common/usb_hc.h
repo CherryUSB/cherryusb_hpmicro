@@ -1,27 +1,10 @@
-/**
- * @file usb_hc.h
- * @brief
+/*
+ * Copyright (c) 2022, sakumisu
  *
- * Copyright (c) 2022 sakumisu
- *
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.  The
- * ASF licenses this file to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance with the
- * License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
- * License for the specific language governing permissions and limitations
- * under the License.
- *
+ * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef _USB_HC_H
-#define _USB_HC_H
+#ifndef USB_HC_H
+#define USB_HC_H
 
 #include <stdint.h>
 
@@ -31,6 +14,7 @@ extern "C" {
 
 typedef void (*usbh_asynch_callback_t)(void *arg, int nbytes);
 typedef void *usbh_epinfo_t;
+
 /**
  * @brief USB Endpoint Configuration.
  *
@@ -38,38 +22,24 @@ typedef void *usbh_epinfo_t;
  */
 struct usbh_endpoint_cfg {
     struct usbh_hubport *hport;
-    /** The number associated with the EP in the device
-     *  configuration structure
-     *       IN  EP = 0x80 | \<endpoint number\>
-     *       OUT EP = 0x00 | \<endpoint number\>
-     */
-    uint8_t ep_addr;
-    /** Endpoint Transfer Type.
-     * May be Bulk, Interrupt, Control or Isochronous
-     */
-    uint8_t ep_type;
-    uint8_t ep_interval;
-    /** Endpoint max packet size */
-    uint16_t ep_mps;
+    uint8_t ep_addr;     /* Endpoint addr with direction */
+    uint8_t ep_type;     /* Endpoint type */
+    uint16_t ep_mps;     /* Endpoint max packet size */
+    uint8_t ep_interval; /* Endpoint interval */
+    uint16_t ep_mps;     /* Endpoint max packet size */
 };
-
-/**
- * @brief USB Host Core Layer API
- * @defgroup _usb_host_core_api USB Host Core API
- * @{
- */
 
 /**
  * @brief usb host software init, used for global reset.
  *
- * @return int
+ * @return On success will return 0, and others indicate fail.
  */
 int usb_hc_sw_init(void);
 
 /**
  * @brief usb host controller hardware init.
  *
- * @return int
+ * @return On success will return 0, and others indicate fail.
  */
 int usb_hc_hw_init(void);
 
@@ -77,8 +47,7 @@ int usb_hc_hw_init(void);
  * @brief get port connect status
  *
  * @param port
- * @return true
- * @return false
+ * @return On success will return 0, and others indicate fail.
  */
 bool usbh_get_port_connect_status(const uint8_t port);
 
@@ -86,7 +55,7 @@ bool usbh_get_port_connect_status(const uint8_t port);
  * @brief reset roothub port
  *
  * @param port port index
- * @return int
+ * @return On success will return 0, and others indicate fail.
  */
 int usbh_reset_port(const uint8_t port);
 
@@ -234,4 +203,4 @@ void usbh_event_notify_handler(uint8_t event, uint8_t rhport);
 }
 #endif
 
-#endif
+#endif /* USB_HC_H */

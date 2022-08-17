@@ -295,7 +295,7 @@ void hid_custom_send_report(uint8_t ep, uint8_t *data, uint8_t len)
 void hid_custom_test(void)
 {
     /*!< keyboard test */
-    uint8_t sendbuffer1[8] = { 0x00, 0x00, HID_KEY_A, 0x00, 0x00, 0x00, 0x00, 0x00 }; //A
+    uint8_t sendbuffer1[8] = { 0x00, 0x00, HID_KBD_USAGE_A, 0x00, 0x00, 0x00, 0x00, 0x00 }; //A
     /*!< custom test */
     uint8_t sendbuffer2[64] = { 6 };
     hid_custom_send_report(HIDRAW_IN_EP, sendbuffer2, HIDRAW_IN_SIZE);

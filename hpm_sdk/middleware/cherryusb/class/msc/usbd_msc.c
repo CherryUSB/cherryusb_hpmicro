@@ -1,24 +1,7 @@
-/**
- * @file usbd_msc.c
- * @brief
+/*
+ * Copyright (c) 2022, sakumisu
  *
- * Copyright (c) 2022 sakumisu
- *
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.  The
- * ASF licenses this file to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance with the
- * License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
- * License for the specific language governing permissions and limitations
- * under the License.
- *
+ * SPDX-License-Identifier: Apache-2.0
  */
 #include "usbd_core.h"
 #include "usbd_msc.h"
@@ -76,9 +59,6 @@ USB_NOCACHE_RAM_SECTION struct usbd_msc_cfg_priv {
     uint8_t block_buffer[CONFIG_USBDEV_MSC_BLOCK_SIZE];
 } usbd_msc_cfg;
 
-/*memory OK (after a usbd_msc_memory_verify)*/
-static bool memOK;
-
 #ifdef CONFIG_USBDEV_MSC_THREAD
 static volatile uint8_t thread_op;
 static usb_osal_sem_t msc_sem;
@@ -91,15 +71,6 @@ static void usbd_msc_reset(void)
     usbd_msc_cfg.stage = MSC_READ_CBW;
 }
 
-/**
- * @brief Handler called for Class requests not handled by the USB stack.
- *
- * @param setup    Information about the request to execute.
- * @param len       Size of the buffer.
- * @param data      Buffer containing the request result.
- *
- * @return  0 on success, negative errno code on fail.
- */
 static int msc_storage_class_request_handler(struct usb_setup_packet *setup, uint8_t **data, uint32_t *len)
 {
     USB_LOG_DBG("MSC Class request: "
@@ -640,7 +611,8 @@ static bool SCSI_write12(uint8_t **data, uint32_t *len)
     usbd_ep_start_read(mass_ep_data[MSD_OUT_EP_IDX].ep_addr, &usbd_msc_cfg.block_buffer[usbd_msc_cfg.scsi_blk_addr % usbd_msc_cfg.scsi_blk_size], MASS_STORAGE_BULK_EP_MPS);
     return true;
 }
-
+/* do not use verify to reduce code size */
+#if 0
 static bool SCSI_verify10(uint8_t **data, uint32_t *len)
 {
     /* Logical Block Address of First Block */
@@ -681,11 +653,10 @@ static bool SCSI_verify10(uint8_t **data, uint32_t *len)
         return false;
     }
 
-    memOK = true;
     usbd_msc_cfg.stage = MSC_DATA_OUT;
     return true;
 }
-
+#endif
 #ifdef CONFIG_USBDEV_MSC_THREAD
 static void usbd_msc_thread_memory_read_done(void)
 {
@@ -863,7 +834,8 @@ static bool SCSI_CBWDecode(uint32_t nbytes)
                 ret = SCSI_write12(NULL, 0);
                 break;
             case SCSI_CMD_VERIFY10:
-                ret = SCSI_verify10(NULL, 0);
+                //ret = SCSI_verify10(NULL, 0);
+                ret = false;
                 break;
 
             default:

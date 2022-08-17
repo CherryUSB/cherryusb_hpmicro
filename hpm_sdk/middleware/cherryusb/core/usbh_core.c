@@ -1,24 +1,7 @@
-/**
- * @file usbh_core.c
- * @brief
+/*
+ * Copyright (c) 2022, sakumisu
  *
- * Copyright (c) 2022 sakumisu
- *
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.  The
- * ASF licenses this file to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance with the
- * License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
- * License for the specific language governing permissions and limitations
- * under the License.
- *
+ * SPDX-License-Identifier: Apache-2.0
  */
 #include "usbh_core.h"
 
@@ -50,8 +33,8 @@ struct usbh_devaddr_priv {
 };
 
 struct usbh_roothubport_priv {
-    struct usbh_hubport hport;       /* Common hub port definitions */
-    struct usbh_devaddr_priv devgen; /* Address generation data */
+    struct usbh_hubport hport;
+    struct usbh_devaddr_priv devgen;
 };
 
 struct usbh_core_priv {
@@ -75,11 +58,7 @@ static int usbh_allocate_devaddr(struct usbh_devaddr_priv *devgen)
     int index;
     int bitno;
 
-    /* Loop until we find a valid device address */
-
     for (;;) {
-        /* Try the next device address */
-
         devaddr = devgen->next;
         if (devgen->next >= 0x7f) {
             devgen->next = 1;
@@ -87,24 +66,14 @@ static int usbh_allocate_devaddr(struct usbh_devaddr_priv *devgen)
             devgen->next++;
         }
 
-        /* Is this address already allocated? */
-
         index = devaddr >> 5;
         bitno = devaddr & 0x1f;
         if ((devgen->alloctab[index] & (1 << bitno)) == 0) {
-            /* No... allocate it now */
-
             devgen->alloctab[index] |= (1 << bitno);
             return (int)devaddr;
         }
 
-        /* This address has already been allocated.  The following logic will
-       * prevent (unexpected) infinite loops.
-       */
-
         if (startaddr == devaddr) {
-            /* We are back where we started... the are no free device address */
-
             return -ENOMEM;
         }
     }
@@ -119,13 +88,12 @@ static int usbh_free_devaddr(struct usbh_devaddr_priv *devgen, uint8_t devaddr)
         index = devaddr >> USB_DEV_ADDR_MARK_OFFSET;
         bitno = devaddr & USB_DEV_ADDR_MARK_MASK;
 
-        /* Free the address by clearing the associated bit in the alloctab[]; */
+        /* Free the address  */
         if ((devgen->alloctab[index] |= (1 << bitno)) != 0) {
             devgen->alloctab[index] &= ~(1 << bitno);
         } else {
             return -1;
         }
-        /* Reset the next pointer if the one just released has a lower value */
 
         if (devaddr < devgen->next) {
             devgen->next = devaddr;
@@ -463,7 +431,7 @@ static int usbh_enumerate(struct usbh_hubport *hport)
         ep_mps = 64;
         descsize = USB_SIZEOF_DEVICE_DESC;
     } else {
-        /* Eight will work for both low- and full-speed */
+        /* For low or full, we use 8 bytes, 64 bytes is also ok */
         ep_mps = 8;
         descsize = 8;
     }
@@ -516,7 +484,7 @@ static int usbh_enumerate(struct usbh_hubport *hport)
         goto errout;
     }
 
-    /* wait device address set completely */
+    /* Wait device set address completely */
     usb_osal_msleep(2);
 
     /* Assign the function address to the port */
@@ -831,10 +799,6 @@ int usbh_initialize(void)
     usbh_class_info_table_begin = (struct usbh_class_info *)&__usbh_class_info_start__;
     usbh_class_info_table_end = (struct usbh_class_info *)&__usbh_class_info_end__;
 #endif
-    
-    extern const struct usbh_class_info hid_mouse_class_info;
-    extern const struct usbh_class_info msc_class_info;
-    extern const struct usbh_class_info rndis_class_info;
 
     usbh_core_cfg.pscevent = usb_osal_event_create();
     if (usbh_core_cfg.pscevent == NULL) {

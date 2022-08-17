@@ -1,24 +1,7 @@
-/**
- * @file usbd_video.c
- * @brief
+/*
+ * Copyright (c) 2022, sakumisu
  *
- * Copyright (c) 2022 sakumisu
- *
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.  The
- * ASF licenses this file to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance with the
- * License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
- * License for the specific language governing permissions and limitations
- * under the License.
- *
+ * SPDX-License-Identifier: Apache-2.0
  */
 #include "usbd_core.h"
 #include "usbd_video.h"
@@ -709,10 +692,6 @@ static void video_notify_handler(uint8_t event, void *arg)
             usbd_video_cfg.power_mode = 0;
             break;
 
-        case USBD_EVENT_SOF:
-            usbd_video_sof_callback();
-            break;
-
         case USBD_EVENT_SET_INTERFACE: {
             struct usb_interface_descriptor *intf = (struct usb_interface_descriptor *)arg;
             if (intf->bAlternateSetting == 1) {
@@ -818,8 +797,4 @@ void usbd_video_mjpeg_payload_header_toggle(uint8_t *output, uint32_t packets)
     for (size_t i = 0; i < packets; i++) {
         output[usbd_video_cfg.probe.dwMaxPayloadTransferSize * i + 1] ^= 0x01;
     }
-}
-
-__WEAK void usbd_video_sof_callback(void)
-{
 }

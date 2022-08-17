@@ -1,37 +1,16 @@
-/**
- * @file usbd_hid.c
- * @brief
+/*
+ * Copyright (c) 2022, sakumisu
  *
- * Copyright (c) 2022 sakumisu
- *
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.  The
- * ASF licenses this file to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance with the
- * License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
- * License for the specific language governing permissions and limitations
- * under the License.
- *
+ * SPDX-License-Identifier: Apache-2.0
  */
 #include "usbd_core.h"
 #include "usbd_hid.h"
-
-#define HID_STATE_IDLE 0
-#define HID_STATE_BUSY 1
 
 struct usbd_hid {
     const uint8_t *hid_descriptor;
     const uint8_t *hid_report_descriptor;
     uint32_t hid_report_descriptor_len;
     uint8_t intf_num;
-    uint8_t hid_state;
     uint8_t report;
     uint8_t idle_state;
     uint8_t protocol;
@@ -47,7 +26,6 @@ static void usbd_hid_reset(void)
     usb_slist_for_each(i, &usbd_hid_head)
     {
         struct usbd_hid *hid_intf = usb_slist_entry(i, struct usbd_hid, list);
-        hid_intf->hid_state = HID_STATE_IDLE;
         hid_intf->report = 0;
         hid_intf->idle_state = 0;
         hid_intf->protocol = 0;

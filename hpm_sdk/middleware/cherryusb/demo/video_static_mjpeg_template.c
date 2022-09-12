@@ -141,6 +141,11 @@ const uint8_t video_descriptor[] = {
     0x00
 };
 
+void usbd_configure_done_callback(void)
+{
+    /* no out ep, so do nothing */
+}
+
 volatile bool tx_flag = 0;
 
 void usbd_video_open(uint8_t intf)
@@ -154,18 +159,15 @@ void usbd_video_close(uint8_t intf)
     tx_flag = 0;
 }
 
-static usbd_class_t video_class;
-static usbd_interface_t video_control_intf;
-static usbd_interface_t video_stream_intf;
-
 volatile bool iso_tx_busy = false;
 
 void usbd_video_iso_callback(uint8_t ep, uint32_t nbytes)
 {
+    USB_LOG_RAW("actual in len:%d\r\n", nbytes);
     iso_tx_busy = false;
 }
 
-static usbd_endpoint_t video_in_ep = {
+static struct usbd_endpoint video_in_ep = {
     .ep_cb = usbd_video_iso_callback,
     .ep_addr = VIDEO_IN_EP
 };
@@ -173,11 +175,9 @@ static usbd_endpoint_t video_in_ep = {
 void video_init()
 {
     usbd_desc_register(video_descriptor);
-    usbd_video_add_interface(&video_class, &video_control_intf);
-    usbd_video_add_interface(&video_class, &video_stream_intf);
-    usbd_interface_add_endpoint(&video_stream_intf, &video_in_ep);
-
-    usbd_video_probe_and_commit_controls_init(CAM_FPS, MAX_FRAME_SIZE, MAX_PAYLOAD_SIZE);
+    usbd_add_interface(usbd_video_alloc_intf(CAM_FPS, MAX_FRAME_SIZE, MAX_PAYLOAD_SIZE));
+    usbd_add_interface(usbd_video_alloc_intf(CAM_FPS, MAX_FRAME_SIZE, MAX_PAYLOAD_SIZE));
+    usbd_add_endpoint(&video_in_ep);
 
     usbd_initialize();
 }
@@ -205,7 +205,7 @@ void video_test()
                     }
                 } else {
                     iso_tx_busy = true;
-                    usbd_ep_start_write(VIDEO_IN_EP, &packet_buffer[i * MAX_PAYLOAD_SIZE], MAX_PAYLOAD_SIZE, NULL);
+                    usbd_ep_start_write(VIDEO_IN_EP, &packet_buffer[i * MAX_PAYLOAD_SIZE], MAX_PAYLOAD_SIZE);
                     while (iso_tx_busy) {
                     }
                 }

@@ -10,8 +10,6 @@
 #define USB_NUM_BIDIR_ENDPOINTS USB_SOC_DCD_MAX_ENDPOINT_COUNT
 #endif
 
-#define USB_ALIGN(size, align) (((size) + (align)-1) & ~((align)-1))
-
 /* USBSTS, USBINTR */
 enum {
     intr_usb = HPM_BITSMASK(1, 0),
@@ -28,6 +26,7 @@ struct hpm_ep_state {
     uint16_t ep_mps;    /* Endpoint max packet size */
     uint8_t ep_type;    /* Endpoint type */
     uint8_t ep_stalled; /* Endpoint stall flag */
+    uint8_t ep_enable;  /* Endpoint enable */
     uint8_t *xfer_buf;
     uint32_t xfer_len;
     uint32_t actual_xfer_len;
@@ -59,10 +58,9 @@ __WEAK void usb_dc_low_level_deinit(void)
 
 int usb_dc_init(void)
 {
-    memset(&g_hpm_udc, 0, sizeof(struct hpm_udc));
-
     usb_dc_low_level_init();
 
+    memset(&g_hpm_udc, 0, sizeof(struct hpm_udc));
     g_hpm_udc.handle = &usb_device_handle[0];
     g_hpm_udc.handle->regs = (USB_Type *)HPM_USB0_BASE;
     g_hpm_udc.handle->dcd_data = &_dcd_data;
@@ -99,9 +97,11 @@ int usbd_ep_open(const struct usbd_endpoint_cfg *ep_cfg)
     if (USB_EP_DIR_IS_OUT(ep_cfg->ep_addr)) {
         g_hpm_udc.out_ep[ep_idx].ep_mps = ep_cfg->ep_mps;
         g_hpm_udc.out_ep[ep_idx].ep_type = ep_cfg->ep_type;
+        g_hpm_udc.out_ep[ep_idx].ep_enable = true;
     } else {
         g_hpm_udc.in_ep[ep_idx].ep_mps = ep_cfg->ep_mps;
         g_hpm_udc.in_ep[ep_idx].ep_type = ep_cfg->ep_type;
+        g_hpm_udc.in_ep[ep_idx].ep_enable = true;
     }
 
     tmp_ep_cfg.xfer = ep_cfg->ep_type;
@@ -146,17 +146,14 @@ int usbd_ep_start_write(const uint8_t ep, const uint8_t *data, uint32_t data_len
     if (!data && data_len) {
         return -1;
     }
+    if (!g_hpm_udc.in_ep[ep_idx].ep_enable) {
+        return -2;
+    }
 
     g_hpm_udc.in_ep[ep_idx].xfer_buf = (uint8_t *)data;
     g_hpm_udc.in_ep[ep_idx].xfer_len = data_len;
     g_hpm_udc.in_ep[ep_idx].actual_xfer_len = 0;
 
-#ifdef CONFIG_USB_DCACHE_ENABLE
-    if (data_len != 0) {
-        uint32_t align_len = USB_ALIGN(data_len, CONFIG_DCACHE_LINE_SIZE);
-        l1c_dc_writeback((uint32_t)data, align_len);
-    }
-#endif
     usb_device_edpt_xfer(handle, ep, data, data_len);
 
     return 0;
@@ -169,6 +166,9 @@ int usbd_ep_start_read(const uint8_t ep, uint8_t *data, uint32_t data_len)
 
     if (!data && data_len) {
         return -1;
+    }
+    if (!g_hpm_udc.out_ep[ep_idx].ep_enable) {
+        return -2;
     }
 
     g_hpm_udc.out_ep[ep_idx].xfer_buf = (uint8_t *)data;
@@ -199,6 +199,8 @@ void USBD_IRQHandler(void)
 
     if (int_status & intr_reset) {
         speed = usb_device_get_port_speed(handle);
+        memset(g_hpm_udc.in_ep, 0, sizeof(struct hpm_ep_state) * USB_NUM_BIDIR_ENDPOINTS);
+        memset(g_hpm_udc.out_ep, 0, sizeof(struct hpm_ep_state) * USB_NUM_BIDIR_ENDPOINTS);
         usbd_event_reset_handler();
         usb_device_bus_reset(handle, 64);
     }
@@ -249,12 +251,6 @@ void USBD_IRQHandler(void)
                         if (ep_addr & 0x80) {
                             usbd_event_ep_in_complete_handler(ep_addr, transfer_len);
                         } else {
-#ifdef CONFIG_USB_DCACHE_ENABLE
-                            if (transfer_len) {
-                                uint32_t align_len = USB_ALIGN(transfer_len, CONFIG_DCACHE_LINE_SIZE);
-                                l1c_dc_invalidate((uint32_t)g_hpm_udc.out_ep[ep_idx].xfer_buf, align_len);
-                            }
-#endif
                             usbd_event_ep_out_complete_handler(ep_addr, transfer_len);
                         }
                     }

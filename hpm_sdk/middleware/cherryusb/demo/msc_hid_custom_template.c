@@ -230,12 +230,12 @@ static void usbd_hid_custom_out_callback(uint8_t ep)
 }
 
 /*!< endpoint call back */
-static usbd_endpoint_t custom_in_ep = {
+static struct usbd_interface custom_in_ep = {
     .ep_cb = usbd_hid_custom_in_callback,
     .ep_addr = HIDRAW_IN_EP
 };
 
-static usbd_endpoint_t custom_out_ep = {
+static struct usbd_interface custom_out_ep = {
     .ep_cb = usbd_hid_custom_out_callback,
     .ep_addr = HIDRAW_OUT_EP
 };

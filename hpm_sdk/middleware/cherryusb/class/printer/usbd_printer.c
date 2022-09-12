@@ -11,7 +11,7 @@ struct printer_cfg_priv {
     uint8_t port_status;
 } usbd_printer_cfg;
 
-static int printer_class_request_handler(struct usb_setup_packet *setup, uint8_t **data, uint32_t *len)
+static int printer_class_interface_request_handler(struct usb_setup_packet *setup, uint8_t **data, uint32_t *len)
 {
     USB_LOG_DBG("Printer Class request: "
                 "bRequest 0x%02x\r\n",
@@ -46,19 +46,18 @@ static void printer_notify_handler(uint8_t event, void *arg)
     }
 }
 
-void usbd_printer_add_interface(usbd_class_t *devclass, usbd_interface_t *intf)
+struct usbd_interface *usbd_printer_alloc_intf(void)
 {
-    static usbd_class_t *last_class = NULL;
-
-    if (last_class != devclass) {
-        last_class = devclass;
-        usbd_class_register(devclass);
+    struct usbd_interface *intf = usb_malloc(sizeof(struct usbd_interface));
+    if (intf == NULL) {
+        USB_LOG_ERR("no mem to alloc intf\r\n");
+        return NULL;
     }
 
-    intf->class_handler = printer_class_request_handler;
-    intf->custom_handler = NULL;
+    intf->class_interface_handler = printer_class_interface_request_handler;
+    intf->class_endpoint_handler = NULL;
     intf->vendor_handler = NULL;
     intf->notify_handler = printer_notify_handler;
 
-    usbd_class_add_interface(devclass, intf);
+    return intf;
 }

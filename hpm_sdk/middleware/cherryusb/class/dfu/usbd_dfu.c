@@ -10,7 +10,7 @@ struct dfu_cfg_priv {
     struct dfu_info info;
 } usbd_dfu_cfg;
 
-static int dfu_class_request_handler(struct usb_setup_packet *setup, uint8_t **data, uint32_t *len)
+static int dfu_class_interface_request_handler(struct usb_setup_packet *setup, uint8_t **data, uint32_t *len)
 {
     USB_LOG_WRN("DFU Class request: "
                  "bRequest 0x%02x\r\n",
@@ -43,7 +43,6 @@ static void dfu_notify_handler(uint8_t event, void *arg)
 {
     switch (event) {
         case USBD_EVENT_RESET:
-
             break;
 
         default:
@@ -51,19 +50,18 @@ static void dfu_notify_handler(uint8_t event, void *arg)
     }
 }
 
-void usbd_dfu_add_interface(usbd_class_t *devclass, usbd_interface_t *intf)
+struct usbd_interface *usbd_dfu_alloc_intf(void)
 {
-    static usbd_class_t *last_class = NULL;
-
-    if (last_class != devclass) {
-        last_class = devclass;
-        usbd_class_register(devclass);
+    struct usbd_interface *intf = usb_malloc(sizeof(struct usbd_interface));
+    if (intf == NULL) {
+        USB_LOG_ERR("no mem to alloc intf\r\n");
+        return NULL;
     }
 
-    intf->class_handler = dfu_class_request_handler;
-    intf->custom_handler = NULL;
+    intf->class_interface_handler = dfu_class_interface_request_handler;
+    intf->class_endpoint_handler = NULL;
     intf->vendor_handler = NULL;
     intf->notify_handler = dfu_notify_handler;
 
-    usbd_class_add_interface(devclass, intf);
+    return intf;
 }

@@ -12,7 +12,8 @@ define region BOOT_HEADER = [ from 0x80001000 size 0x3000 ];
 define region XPI0 = [from 0x80003000 size _flash_size - 0x3000 ];   /* XPI0 */
 define region ILM_SLV   = [from 0x1000000 size 256k];        /* ILM slave */
 define region DLM   = [from 0x80000 size 256k];    /* DLM */
-define region AXI_SRAM  = [from 0x1080000 size 768k];
+define region AXI_SRAM  = [from 0x1080000 size 700k];  /* reserve 256K for noncacheable region */
+define region CHERRYUSB_RAM  = [from 0x1080000 + 700k size 72];  /* reserve 48B for noncacheable region */
 define region SDRAM  = [from 0x40000000 size _extram_size];
 define region NONCACHEABLE_RAM = [from 0x1140000 size 256k];
 
@@ -43,6 +44,9 @@ define exported symbol __fw_size__ = 0x1000;
 
 define exported symbol __noncacheable_start__  = start of region NONCACHEABLE_RAM;
 define exported symbol __noncacheable_end__  = end of region NONCACHEABLE_RAM + 1;
+
+define exported symbol __usbh_class_info_start__  = start of region CHERRYUSB_RAM;
+define exported symbol __usbh_class_info_end__  = end of region CHERRYUSB_RAM + 1;
 
 define exported symbol _stack_safe = end of block safe_stack + 1;
 define exported symbol _stack = end of block stack + 1;
@@ -101,3 +105,5 @@ place in NONCACHEABLE_RAM                 { section .noncacheable, section .nonc
 place in AXI_SRAM                         { block heap };                                         // Heap reserved block
 place at end of AXI_SRAM                  { block stack };                                        // Stack reserved block at the end
 place at end of DLM                       { block safe_stack };                                   // Safe stack reserved block at the end
+place in CHERRYUSB_RAM                   { section  .usbh_class_info };
+keep { section .usbh_class_info};

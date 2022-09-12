@@ -77,8 +77,8 @@ int cdc_acm_test(void)
 
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t read_write_buffer[25 * 100];
 
-FATFS fs;
-FIL fnew;
+USB_NOCACHE_RAM_SECTION FATFS fs;
+USB_NOCACHE_RAM_SECTION FIL fnew;
 UINT fnum;
 FRESULT res_sd = 0;
 
@@ -91,12 +91,13 @@ int usb_msc_fatfs_test()
         memcpy(&read_write_buffer[i * 25], tmp_data, strlen(tmp_data));
     }
 
-    USB_LOG_RAW("test fatfs write\r\n");
     res_sd = f_mount(&fs, "2:", 1);
     if (res_sd != FR_OK) {
         USB_LOG_RAW("mount fail,res:%d\r\n", res_sd);
         return -1;
     }
+
+    USB_LOG_RAW("test fatfs write\r\n");
     res_sd = f_open(&fnew, "2:test.txt", FA_CREATE_ALWAYS | FA_WRITE);
     if (res_sd == FR_OK) {
         res_sd = f_write(&fnew, read_write_buffer, sizeof(read_write_buffer), &fnum);
@@ -227,5 +228,6 @@ static void usbh_class_test_thread(void *argument)
 
 void usbh_class_test(void)
 {
+    printf("class test\r\n");
     usb_osal_thread_create("usbh_test", 4096, CONFIG_USBHOST_PSC_PRIO + 1, usbh_class_test_thread, NULL);
 }

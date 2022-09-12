@@ -19,7 +19,6 @@ extern void usbh_class_test();
 
 int main(void)
 {
-    l1c_dc_disable();
     board_init();
     board_init_gpio_pins();
     board_init_usb_pins();

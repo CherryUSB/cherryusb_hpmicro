@@ -4,6 +4,7 @@
 board:
     name: hpm6750evkmini
     soc: HPM6750
+    device: HPM6750xVMx
     openocd-soc: hpm6750-dual-core
     openocd-probe: ft2232
     on-board-ram:
@@ -47,3 +48,4 @@ board:
       - adc12
       - adc16
       - cdc_dual_ports
+      - motor-control

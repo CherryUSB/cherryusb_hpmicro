@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 hpmicro
+ * Copyright (c) 2021 - 2022 hpmicro
  * SPDX-License-Identifier: BSD-3-Clause
  *
  */
@@ -21,6 +21,7 @@
 #include "hpm_pwm_drv.h"
 #include "hpm_trgm_drv.h"
 #include "hpm_pllctl_drv.h"
+#include "hpm_enet_drv.h"
 
 static board_timer_cb timer_cb;
 
@@ -115,22 +116,22 @@ void board_print_clock_freq(void)
     printf("==============================\n");
     printf(" %s clock summary\n", BOARD_NAME);
     printf("==============================\n");
-    printf("cpu0:\t\t %dHz\n", clock_get_frequency(clock_cpu0));
-    printf("cpu1:\t\t %dHz\n", clock_get_frequency(clock_cpu1));
-    printf("axi0:\t\t %dHz\n", clock_get_frequency(clock_axi0));
-    printf("axi1:\t\t %dHz\n", clock_get_frequency(clock_axi1));
-    printf("axi2:\t\t %dHz\n", clock_get_frequency(clock_axi2));
-    printf("ahb:\t\t %dHz\n", clock_get_frequency(clock_ahb));
-    printf("mchtmr0:\t %dHz\n", clock_get_frequency(clock_mchtmr0));
-    printf("mchtmr1:\t %dHz\n", clock_get_frequency(clock_mchtmr1));
-    printf("xpi0:\t\t %dHz\n", clock_get_frequency(clock_xpi0));
-    printf("xpi1:\t\t %dHz\n", clock_get_frequency(clock_xpi1));
-    printf("dram:\t\t %dHz\n", clock_get_frequency(clock_dram));
-    printf("display:\t %dHz\n", clock_get_frequency(clock_display));
-    printf("cam0:\t\t %dHz\n", clock_get_frequency(clock_camera0));
-    printf("cam1:\t\t %dHz\n", clock_get_frequency(clock_camera1));
-    printf("jpeg:\t\t %dHz\n", clock_get_frequency(clock_jpeg));
-    printf("pdma:\t\t %dHz\n", clock_get_frequency(clock_pdma));
+    printf("cpu0:\t\t %luHz\n", clock_get_frequency(clock_cpu0));
+    printf("cpu1:\t\t %luHz\n", clock_get_frequency(clock_cpu1));
+    printf("axi0:\t\t %luHz\n", clock_get_frequency(clock_axi0));
+    printf("axi1:\t\t %luHz\n", clock_get_frequency(clock_axi1));
+    printf("axi2:\t\t %luHz\n", clock_get_frequency(clock_axi2));
+    printf("ahb:\t\t %luHz\n", clock_get_frequency(clock_ahb));
+    printf("mchtmr0:\t %luHz\n", clock_get_frequency(clock_mchtmr0));
+    printf("mchtmr1:\t %luHz\n", clock_get_frequency(clock_mchtmr1));
+    printf("xpi0:\t\t %luHz\n", clock_get_frequency(clock_xpi0));
+    printf("xpi1:\t\t %luHz\n", clock_get_frequency(clock_xpi1));
+    printf("dram:\t\t %luHz\n", clock_get_frequency(clock_dram));
+    printf("display:\t %luHz\n", clock_get_frequency(clock_display));
+    printf("cam0:\t\t %luHz\n", clock_get_frequency(clock_camera0));
+    printf("cam1:\t\t %luHz\n", clock_get_frequency(clock_camera1));
+    printf("jpeg:\t\t %luHz\n", clock_get_frequency(clock_jpeg));
+    printf("pdma:\t\t %luHz\n", clock_get_frequency(clock_pdma));
     printf("==============================\n");
 }
 
@@ -235,21 +236,7 @@ void board_init_lcd(void)
 
 void board_delay_ms(uint32_t ms)
 {
-    uint32_t gptmr_freq;
-    gptmr_channel_config_t config;
-    gptmr_channel_get_default_config(BOARD_DELAY_TIMER, &config);
-
-    clock_add_to_group(BOARD_DELAY_TIMER_CLK_NAME, 0);
-    gptmr_freq = clock_get_frequency(BOARD_DELAY_TIMER_CLK_NAME);
-
-    config.reload = gptmr_freq / 1000 * ms;
-    gptmr_channel_config(BOARD_DELAY_TIMER, BOARD_DELAY_TIMER_CH, &config, false);
-    gptmr_start_counter(BOARD_DELAY_TIMER, BOARD_DELAY_TIMER_CH);
-    while (!gptmr_check_status(BOARD_DELAY_TIMER, GPTMR_CH_RLD_STAT_MASK(BOARD_DELAY_TIMER_CH))) {
-        __asm("nop");
-    }
-    gptmr_stop_counter(BOARD_DELAY_TIMER, BOARD_DELAY_TIMER_CH);
-    gptmr_clear_status(BOARD_DELAY_TIMER, GPTMR_CH_RLD_STAT_MASK(BOARD_DELAY_TIMER_CH));
+    clock_cpu_delay_ms(ms);
 }
 
 void board_timer_isr(void)
@@ -332,7 +319,7 @@ void board_init_i2c(I2C_Type *ptr)
     freq = clock_get_frequency(BOARD_CAP_I2C_CLK_NAME);
     stat = i2c_init_master(BOARD_CAP_I2C_BASE, freq, &config);
     if (stat != status_success) {
-        printf("failed to initialize i2c 0x%x\n", (uint32_t)BOARD_CAP_I2C_BASE);
+        printf("failed to initialize i2c 0x%lx\n", (uint32_t)BOARD_CAP_I2C_BASE);
         while (1) {}
     }
 }
@@ -393,6 +380,18 @@ void board_init_gpio_pins(void)
 void board_init_spi_pins(SPI_Type *ptr)
 {
     init_spi_pins(ptr);
+}
+
+void board_init_spi_pins_with_gpio_as_cs(SPI_Type *ptr)
+{
+    init_spi_pins_with_gpio_as_cs(ptr);
+    gpio_set_pin_output_with_initial(BOARD_SPI_CS_GPIO_CTRL, GPIO_GET_PORT_INDEX(BOARD_SPI_CS_PIN),
+                                    GPIO_GET_PIN_INDEX(BOARD_SPI_CS_PIN), !BOARD_SPI_CS_ACTIVE_LEVEL);
+}
+
+void board_write_spi_cs(uint32_t pin, uint8_t state)
+{
+    gpio_write_pin(BOARD_SPI_CS_GPIO_CTRL, GPIO_GET_PORT_INDEX(pin), GPIO_GET_PIN_INDEX(pin), state);
 }
 
 void board_init_led_pins(void)
@@ -583,6 +582,8 @@ void board_init_clock(void)
     clock_set_source_divider(clock_cpu1, clk_src_pll0_clk0, 1);
     /* Connect Group1 to CPU1 */
     clock_connect_group_to_cpu(1, 1);
+
+    clock_update_core_clock();
 }
 
 uint32_t board_init_cam_clock(CAM_Type *ptr)
@@ -667,7 +668,7 @@ uint32_t board_init_i2s_clock(I2S_Type *ptr)
     if (ptr == HPM_I2S0) {
         clock_add_to_group(clock_i2s0, 0);
 
-        sysctl_config_clock(HPM_SYSCTL, clock_node_aud0, clock_source_pll3_clk0, 25);
+        sysctl_config_clock(HPM_SYSCTL, clock_node_aud0, BOARD_APP_AUDIO_CLK_SRC, 25);
         sysctl_set_adc_i2s_clock_mux(HPM_SYSCTL, clock_node_i2s0, clock_source_i2s_aud0_clk);
 
         return clock_get_frequency(clock_i2s0);
@@ -782,6 +783,7 @@ uint32_t board_sd_configure_clock(SDXC_Type *ptr, uint32_t freq)
             break;
         }
         clock_name_t sdxc_clk = (ptr == HPM_SDXC0) ? clock_sdxc0 : clock_sdxc1;
+        sdxc_enable_inverse_clock(ptr, false);
         sdxc_enable_sd_clock(ptr, false);
         /* Configure the clock below 400KHz for the identification state */
         if (freq <= 400000UL) {
@@ -807,6 +809,7 @@ uint32_t board_sd_configure_clock(SDXC_Type *ptr, uint32_t freq)
         else {
             clock_set_source_divider(sdxc_clk, clk_src_osc24m, 1);
         }
+        sdxc_enable_inverse_clock(ptr, true);
         sdxc_enable_sd_clock(ptr, true);
         actual_freq = clock_get_frequency(sdxc_clk);
     } while (false);
@@ -821,7 +824,10 @@ void board_sd_switch_pins_to_1v8(SDXC_Type *ptr)
 
 bool board_sd_detect_card(SDXC_Type *ptr)
 {
-    return ((BOARD_APP_SDCARD_CDN_GPIO_CTRL->DI[GPIO_DI_GPIOD].VALUE & (1UL << BOARD_APP_SDCARD_CDN_GPIO_PIN)) == 0U);
+    GPIO_Type *gpio = BOARD_APP_SDCARD_CARD_DETECTION_GPIO;
+    uint32_t gpio_index = BOARD_APP_SDCARD_CARD_DETECTION_GPIO_INDEX;
+    uint32_t pin_index = BOARD_APP_SDCARD_CARD_DETECTION_PIN_INDEX;
+    return ((gpio->DI[gpio_index].VALUE & (1UL << pin_index)) == 0U);
 }
 
 static void set_rgb_output_off(PWM_Type *ptr, uint8_t pin, uint8_t cmp_index)
@@ -944,7 +950,15 @@ hpm_stat_t board_init_enet_rmii_reference_clock(ENET_Type *ptr, bool internal)
     } else {
         return status_invalid_argument;
     }
+
+    enet_rmii_enable_clock(ptr, internal);
+
     return status_success;
+}
+
+hpm_stat_t board_init_enet_rgmii_clock_delay(ENET_Type *ptr)
+{
+    return enet_rgmii_set_clock_delay(ptr, BOARD_ENET_RGMII_TX_DLY, BOARD_ENET_RGMII_RX_DLY);
 }
 
 void board_init_adc12_pins(void)

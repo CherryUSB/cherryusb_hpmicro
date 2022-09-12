@@ -20,8 +20,8 @@ static bool rtl8211_id_check(ENET_Type *ptr)
 {
     uint16_t id1, id2;
 
-    id1 = enet_phy_read(ptr, PHY_ADDR, RTL8211_REG_PHYID1);
-    id2 = enet_phy_read(ptr, PHY_ADDR, RTL8211_REG_PHYID2);
+    id1 = enet_read_phy(ptr, PHY_ADDR, RTL8211_REG_PHYID1);
+    id2 = enet_read_phy(ptr, PHY_ADDR, RTL8211_REG_PHYID2);
 
     if (RTL8211_PHYID1_OUI_MSB_GET(id1) == PHY_ID1 && RTL8211_PHYID2_OUI_MSB_GET(id2) == PHY_ID2) {
         return true;
@@ -35,7 +35,7 @@ static bool rtl8211_id_check(ENET_Type *ptr)
  *---------------------------------------------------------------------*/
 uint16_t rtl8211_register_check(ENET_Type *ptr, uint32_t addr)
 {
-   return enet_phy_read(ptr, PHY_ADDR, addr);
+   return enet_read_phy(ptr, PHY_ADDR, addr);
 }
 
 void rtl8211_reset(ENET_Type *ptr)
@@ -43,19 +43,19 @@ void rtl8211_reset(ENET_Type *ptr)
     uint16_t data;
 
     /* PHY reset */
-    enet_phy_write(ptr, PHY_ADDR, RTL8211_REG_BMCR, RTL8211_BMCR_RESET_SET(1));
+    enet_write_phy(ptr, PHY_ADDR, RTL8211_REG_BMCR, RTL8211_BMCR_RESET_SET(1));
 
     /* wait until the reset is completed */
     do {
-        data = enet_phy_read(ptr, PHY_ADDR, RTL8211_REG_BMCR);
+        data = enet_read_phy(ptr, PHY_ADDR, RTL8211_REG_BMCR);
     } while (RTL8211_BMCR_RESET_GET(data));
 }
 
 void rtl8211_basic_mode_default_config(ENET_Type *ptr, rtl8211_config_t *config)
 {
-    config->loopback         = 1; /* Enable PCS loopback mode */
-    config->speed            = 3; /* reserved:3/2; 100mbps: 1; 10mbps: 0 */
-    config->auto_negotiation = 0; /* Enable Auto-Negotiation */
+    config->loopback         = 0; /* Enable PCS loopback mode */
+    config->speed            = 1; /* reserved:3/2; 100mbps: 1; 10mbps: 0 */
+    config->auto_negotiation = 1; /* Enable Auto-Negotiation */
     config->duplex_mode      = 1; /* Full duplex mode */
 }
 
@@ -75,12 +75,7 @@ bool rtl8211_basic_mode_init(ENET_Type *ptr, rtl8211_config_t *config)
         para |= RTL8211_BMCR_SPEED0_SET(config->speed) | RTL8211_BMCR_SPEED1_SET(config->speed >> 1);
     }
 
-    #if 0
-    enet_phy_write(ptr, PHY_ADDR, RTL8211_REG_BMCR, para);
-    #else
-    para = enet_phy_read(ptr, PHY_ADDR, RTL8211_REG_BMCR) | RTL8211_BMCR_LOOPBACK_MASK;
-    enet_phy_write(ptr, PHY_ADDR, RTL8211_REG_BMCR, para);
-    #endif
+    enet_write_phy(ptr, PHY_ADDR, RTL8211_REG_BMCR, para);
 
     /* check the id of rtl8211 */
     if (rtl8211_id_check(ptr) == false) {
@@ -100,18 +95,18 @@ void rtl8211_read_status(ENET_Type *ptr)
 {
     uint16_t status;
 
-    status = enet_phy_read(ptr, PHY_ADDR,  RTL8211_REG_BMSR);
+    status = enet_read_phy(ptr, PHY_ADDR,  RTL8211_REG_BMSR);
     printf("BMSR: %08x\n", status);
-    status = enet_phy_read(ptr, PHY_ADDR,  RTL8211_REG_GBSR);
+    status = enet_read_phy(ptr, PHY_ADDR,  RTL8211_REG_GBSR);
     printf("GBSR: %08x\n", status);
-    status = enet_phy_read(ptr, PHY_ADDR,  RTL8211_REG_GBESR);
+    status = enet_read_phy(ptr, PHY_ADDR,  RTL8211_REG_GBESR);
     printf("GBESR: %08x\n", status);
-    status = enet_phy_read(ptr, PHY_ADDR,  RTL8211_REG_PHYSR);
+    status = enet_read_phy(ptr, PHY_ADDR,  RTL8211_REG_PHYSR);
     printf("PHYSR: %08x\n", status);
-    status = enet_phy_read(ptr, PHY_ADDR,  RTL8211_REG_RXERC);
+    status = enet_read_phy(ptr, PHY_ADDR,  RTL8211_REG_RXERC);
     printf("RXERC: %08x\n", status);
 
-    status = enet_phy_read(ptr, PHY_ADDR, RTL8211_REG_PHYCR);
+    status = enet_read_phy(ptr, PHY_ADDR, RTL8211_REG_PHYCR);
     printf("PHYCR, %x\n", status);
 }
 
@@ -119,14 +114,8 @@ void rtl8211_control_config(ENET_Type *ptr)
 {
     uint16_t para = 0;
 
-   // para |= (0 << 13) | (1 << 12) | (1 << 11);
+    para = enet_read_phy(ptr, PHY_ADDR, RTL8211_REG_PHYCR) | (1 << 10);
 
-    para = enet_phy_read(ptr, PHY_ADDR, RTL8211_REG_GBCR) |  (1 << 12) | (1 << 11);
-
-   // enet_phy_write(ptr, PHY_ADDR, RTL8211_REG_GBCR, para);
-
-    para = enet_phy_read(ptr, PHY_ADDR, RTL8211_REG_PHYCR) | (1 << 10);
-
-    enet_phy_write(ptr, PHY_ADDR, RTL8211_REG_PHYCR, para);
+    enet_write_phy(ptr, PHY_ADDR, RTL8211_REG_PHYCR, para);
 
 }

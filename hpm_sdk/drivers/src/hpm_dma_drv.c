@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 hpmicro
+ * Copyright (c) 2021 - 2022 hpmicro
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -10,8 +10,8 @@
 hpm_stat_t dma_setup_channel(DMA_Type *ptr, uint32_t ch_num, dma_channel_config_t *ch)
 {
     uint32_t tmp;
-    if ((ch->dst_width > DMA_SOC_TRANSFER_WIDTH_MAX)
-            || (ch->src_width > DMA_SOC_TRANSFER_WIDTH_MAX)) {
+    if ((ch->dst_width > DMA_SOC_TRANSFER_WIDTH_MAX(ptr))
+            || (ch->src_width > DMA_SOC_TRANSFER_WIDTH_MAX(ptr))) {
         return status_invalid_argument;
     }
     if ((ch->size_in_byte & ((1 << ch->dst_width) - 1))
@@ -35,7 +35,7 @@ hpm_stat_t dma_setup_channel(DMA_Type *ptr, uint32_t ch_num, dma_channel_config_
     ptr->CHCTRL[ch_num].LLPOINTERH = DMA_CHCTRL_LLPOINTERH_LLPOINTERH_SET(ch->linked_ptr_high);
 #endif
 
-    ptr->INTSTATUS = 0xFFFFFFFFUL;
+    ptr->INTSTATUS = (DMA_INTSTATUS_TC_SET(1) | DMA_INTSTATUS_ABORT_SET(1) | DMA_INTSTATUS_ERROR_SET(1)) << ch_num;
     tmp = DMA_CHCTRL_CTRL_SRCBUSINFIDX_SET(0)
         | DMA_CHCTRL_CTRL_DSTBUSINFIDX_SET(0)
         | DMA_CHCTRL_CTRL_PRIORITY_SET(ch->priority)
@@ -87,7 +87,7 @@ hpm_stat_t dma_start_memcpy(DMA_Type *ptr, uint8_t ch_num,
     /* burst size checking (1-byte burst length will cause heavy overhead */
     if (!burst_len_in_byte || burst_len_in_byte == 1 || burst_len_in_byte > size
         || burst_len_in_byte >
-            ((1 << DMA_SOC_TRANSFER_WIDTH_MAX) << DMA_NUM_TRANSFER_PER_BURST_1024T)) {
+            ((1 << DMA_SOC_TRANSFER_WIDTH_MAX(ptr)) << DMA_SOC_TRANSFER_PER_BURST_MAX(ptr))) {
         return status_invalid_argument;
     }
 
@@ -106,7 +106,7 @@ hpm_stat_t dma_start_memcpy(DMA_Type *ptr, uint8_t ch_num,
 
     config.src_width = DMA_TRANSFER_WIDTH_HALF_WORD;
     config.dst_width = DMA_TRANSFER_WIDTH_HALF_WORD;
-    for (width = DMA_SOC_TRANSFER_WIDTH_MAX; width > DMA_TRANSFER_WIDTH_HALF_WORD; width--) {
+    for (width = DMA_SOC_TRANSFER_WIDTH_MAX(ptr); width > DMA_TRANSFER_WIDTH_HALF_WORD; width--) {
         if (!(burst_len_in_byte & ((1 << width) - 1))
             && !(dst & ((1 << width) - 1))
             && !(src & ((1 << width) - 1))
@@ -128,7 +128,7 @@ hpm_stat_t dma_start_memcpy(DMA_Type *ptr, uint8_t ch_num,
     config.src_addr = src;
     config.dst_addr = dst;
     config.size_in_byte = size;
-    
+
     config.src_burst_size = burst_size;
     stat = dma_setup_channel(ptr, ch_num, &config);
     if (stat != status_success) {

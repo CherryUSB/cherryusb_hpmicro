@@ -13,7 +13,7 @@
 void pdma_set_block_size(PDMA_Type *ptr, pdma_blocksize_t size)
 {
     ptr->CTRL = (ptr->CTRL & ~PDMA_CTRL_BS16_MASK)
-        | (size == pdma_blocksize_16x16) ? PDMA_CTRL_BS16_MASK : 0;
+        | ((size == pdma_blocksize_16x16) ? PDMA_CTRL_BS16_MASK : 0);
 }
 
 void pdma_enable_plane(PDMA_Type *ptr, pdma_plane_t enable_plane, bool enable)
@@ -210,8 +210,8 @@ void pdma_get_default_output_config(PDMA_Type *ptr, pdma_output_config_t *config
 
 void pdma_stop(PDMA_Type *ptr)
 {
-    pdma_software_reset(ptr);
     ptr->CTRL &= ~PDMA_CTRL_PDMA_EN_MASK;
+    pdma_software_reset(ptr);
     ptr->STAT = 0x21F;
 }
 
@@ -665,16 +665,16 @@ static void pdma_calculate_scale(uint32_t t, uint32_t target_t,
 {
     uint32_t tmp;
     tmp = ((t << PDMA_SCALE_FRAC_BITS) / target_t) >> PDMA_SCALE_FRAC_BITS;
-    if (tmp > 16) {
+    if (tmp >= 16) {
         *dec = pdma_decimation_by_8;
         *scale = 2;
         return;
     }
-    if (tmp > 8) {
+    if (tmp >= 8) {
         *dec = pdma_decimation_by_8;
-    } else if (tmp > 4) {
+    } else if (tmp >= 4) {
         *dec = pdma_decimation_by_4;
-    } else if (tmp > 2) {
+    } else if (tmp >= 2) {
         *dec = pdma_decimation_by_2;
     } else {
         *dec = pdma_decimation_by_1;

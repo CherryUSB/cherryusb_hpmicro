@@ -119,6 +119,13 @@ function (generate_ses_project)
             continue()
         endif()
 
+        set(enable_cpp_exceptions 0)
+        string(FIND ${f} "-fexceptions" exist)
+        if(NOT ${exist} EQUAL -1)
+            set(enable_cpp_exceptions 1)
+            continue()
+        endif()
+
         if(NOT target_cflags)
             set(target_cflags ${f})
         else()
@@ -389,7 +396,8 @@ function (generate_ses_project)
                 \"compiler_abi\":\"${target_compiler_abi}\",
                 \"compiler_arch\":\"${target_compiler_arch}\",
                 \"ses_link_input\":\"${target_ses_ld_input}\",
-                \"enable_nds_dsp\":\"${enable_nds_dsp}\"
+                \"enable_nds_dsp\":\"${enable_nds_dsp}\",
+                \"enable_cpp_exceptions\":\"${enable_cpp_exceptions}\"
                 }
             }")
     else()
@@ -419,13 +427,14 @@ function (generate_ses_project)
                 \"compiler_abi\":\"${target_compiler_abi}\",
                 \"compiler_arch\":\"${target_compiler_arch}\",
                 \"ses_link_input\":\"${target_ses_ld_input}\",
-                \"enable_nds_dsp\":\"${enable_nds_dsp}\"
+                \"enable_nds_dsp\":\"${enable_nds_dsp}\",
+                \"enable_cpp_exceptions\":\"${enable_cpp_exceptions}\"
                 }
             }")
     endif()
 
     execute_process(
-        COMMAND ${PYTHON_EXECUTABLE} ${HPM_SDK_BASE}/scripts/segger/embedded_studio_proj_gen.py "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.json" "${CMAKE_CURRENT_BINARY_DIR}/segger_embedded_studio"
+        COMMAND ${PYTHON_EXECUTABLE} ${HPM_SDK_BASE}/scripts/segger/embedded_studio_proj_gen.py "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.json" "${CMAKE_CURRENT_BINARY_DIR}/segger_embedded_studio" "${CMAKE_CURRENT_SOURCE_DIR}"
         WORKING_DIRECTORY  ${HPM_SDK_BASE}/scripts/segger
         )
 endfunction ()

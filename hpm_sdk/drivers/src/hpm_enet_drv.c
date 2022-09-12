@@ -8,7 +8,6 @@
 /*---------------------------------------------------------------------*
  * Includes
  *---------------------------------------------------------------------*/
-#include "board.h"
 #include "hpm_enet_drv.h"
 #include "hpm_enet_soc_drv.h"
 
@@ -50,11 +49,11 @@ static int enet_dma_init(ENET_Type *ptr, enet_desc_t *desc, uint32_t intr)
 
     ptr->DMA_BUS_MODE &= ~ENET_DMA_BUS_MODE_FB_MASK;
 
-    /* set programmable burst length */
-    ptr->DMA_BUS_MODE |= ENET_DMA_BUS_MODE_PBL_SET(enet_pbl_16);
+    /* enable pblx8 mode */
+    ptr->DMA_BUS_MODE |= ENET_DMA_BUS_MODE_PBLX8_MASK;
 
-    /* disable pblx8 mode */
-    ptr->DMA_BUS_MODE &= ~ENET_DMA_BUS_MODE_PBLX8_MASK;
+    /* set programmable burst length */
+    ptr->DMA_BUS_MODE |= ENET_DMA_BUS_MODE_PBL_SET(enet_pbl_32);
 
     /* disable separate pbl */
     ptr->DMA_BUS_MODE &= ~ENET_DMA_BUS_MODE_USP_MASK;
@@ -100,13 +99,6 @@ static int enet_mac_init(ENET_Type *ptr, enet_mac_config_t *config, enet_inf_typ
         }
     }
 
-    ptr->MAC_ADDR[ENET_MAC_ADDR_1].HIGH |= ENET_MAC_ADDR_HIGH_AE_MASK;
-    ptr->MAC_ADDR[ENET_MAC_ADDR_1].HIGH |= ENET_MAC_ADDR_HIGH_SA_MASK;
-    ptr->MAC_ADDR[ENET_MAC_ADDR_1].HIGH &= ~ENET_MAC_ADDR_HIGH_MBC_MASK;
-
-    ptr->MAC_ADDR[ENET_MAC_ADDR_1].HIGH &= ~ENET_MAC_ADDR_HIGH_AE_MASK;
-    ptr->MAC_ADDR[ENET_MAC_ADDR_1].HIGH &= ~ENET_MAC_ADDR_HIGH_SA_MASK;
-
 
     /* set the appropriate filters for the incoming frames */
     ptr->MACFF |= ENET_MACFF_RA_SET(1);      /* receive all */
@@ -124,6 +116,15 @@ static int enet_mac_init(ENET_Type *ptr, enet_mac_config_t *config, enet_inf_typ
     } else {
         return status_invalid_argument;
     }
+
+    ptr->MACCFG |= ENET_MACCFG_DM_MASK;
+
+    if (ENET_MACCFG_DM_GET(ptr->MACCFG) == 0) {
+        ptr->MACCFG |= ENET_MACCFG_IFG_SET(4);
+    } else {
+        ptr->MACCFG |= ENET_MACCFG_IFG_SET(2);
+    }
+
 
     /* enable transmitter enable and receiver */
     ptr->MACCFG |= ENET_MACCFG_TE_MASK | ENET_MACCFG_RE_MASK;
@@ -339,11 +340,13 @@ uint32_t enet_prepare_transmission_descriptors(ENET_Type *ptr, enet_tx_desc_t **
     if (buf_count == 1) {
         /*set the last and the first segment */
         dma_tx_desc->tdes0_bm.own = 0;
+        dma_tx_desc->tdes0_bm.ic = 0;
         dma_tx_desc->tdes0_bm.fs = 1;
         dma_tx_desc->tdes0_bm.ls = 1;
         dma_tx_desc->tdes0_bm.dc = 1;
         dma_tx_desc->tdes0_bm.dp = 0;
-        dma_tx_desc->tdes0_bm.crcr = 0;
+        dma_tx_desc->tdes0_bm.crcr = 1;
+        dma_tx_desc->tdes0_bm.cic = 3;
         dma_tx_desc->tdes1_bm.saic = 2;
 
         /* set the frame size */
@@ -496,7 +499,7 @@ void enet_update_ptp_timeoffset(ENET_Type *ptr, enet_ptp_time_t *timeoffset)
 {
     /* write the offset (positive or negative ) in the timestamp update high and low registers */
     ptr->SYST_SEC_UPD = ENET_SYST_SEC_UPD_TSS_SET(timeoffset->sec);
-    ptr->SYST_NSEC_UPD = ENET_SYST_NSEC_UPD_ADDSUB_SET(timeoffset->sign) | ENET_SYST_NSEC_UPD_TSSS_SET(timeoffset->nsec / ptr->SUB_SEC_INCR);
+    ptr->SYST_NSEC_UPD = ENET_SYST_NSEC_UPD_ADDSUB_SET(timeoffset->sign) | ENET_SYST_NSEC_UPD_TSSS_SET(timeoffset->nsec);
 
     /* update the timestamp */
     ptr->TS_CTRL |= ENET_TS_CTRL_TSUPDT_MASK;

@@ -8,6 +8,8 @@
 #ifndef HPM_SOC_FEATURE_H
 #define HPM_SOC_FEATURE_H
 
+#include "hpm_soc.h"
+
 /*
  * I2C Section
  */
@@ -16,10 +18,12 @@
 /*
  * PMIC Section
  */
-#define PCFG_SOC_LDO1P1_MIN_VOLTAGE_IN_MV (900U)
-#define PCFG_SOC_LDO1P1_MAX_VOLTAGE_IN_MV (1100U)
-#define PCFG_SOC_LDO2P5_MIN_VOLTAGE_IN_MV (2100U)
-#define PCFG_SOC_LDO2P5_MAX_VOLTAGE_IN_MV (2500U)
+#define PCFG_SOC_LDO1P1_MIN_VOLTAGE_IN_MV (700U)
+#define PCFG_SOC_LDO1P1_MAX_VOLTAGE_IN_MV (1320U)
+#define PCFG_SOC_LDO2P5_MIN_VOLTAGE_IN_MV (2125)
+#define PCFG_SOC_LDO2P5_MAX_VOLTAGE_IN_MV (2900U)
+#define PCFG_SOC_DCDC_MIN_VOLTAGE_IN_MV (600U)
+#define PCFG_SOC_DCDC_MAX_VOLTAGE_IN_MV (1375U)
 
 /*
  * I2S Section
@@ -56,9 +60,11 @@
 /*
  * DMA Section
  */
-#define DMA_SOC_TRANSFER_WIDTH_MAX DMA_TRANSFER_WIDTH_DOUBLE_WORD
+#define DMA_SOC_TRANSFER_WIDTH_MAX(x) (((x) == HPM_XDMA) ? DMA_TRANSFER_WIDTH_DOUBLE_WORD : DMA_TRANSFER_WIDTH_WORD)
+#define DMA_SOC_TRANSFER_PER_BURST_MAX(x) (((x) == HPM_XDMA) ? DMA_NUM_TRANSFER_PER_BURST_1024T : DMA_NUM_TRANSFER_PER_BURST_128T)
 #define DMA_SOC_BUS_NUM (1U)
 #define DMA_SOC_CHANNEL_NUM (8U)
+#define DMA_SOC_MAX_COUNT (2U)
 
 /*
  * PDMA Section
@@ -108,11 +114,13 @@
 /*
 * ADC Section
 */
-#define ADC_SOC_MAX_SEQ_LEN                        (16U)
+#define ADC_SOC_SEQ_MAX_LEN                        (16U)
 #define ADC_SOC_MAX_TRIG_CH_LEN                    (4U)
 #define ADC_SOC_DMA_ADDR_ALIGNMENT                 (4U)
 #define ADC_SOC_CONFIG_INTEN_CHAN_BIT_SIZE         (8U)
 #define ADC_SOC_PREEMPT_ENABLE_CTRL_SUPPORT        (0U)
+#define ADC_SOC_SEQ_MAX_DMA_BUFF_LEN_IN_4BYTES     (1024U)
+#define ADC_SOC_PMT_MAX_DMA_BUFF_LEN_IN_4BYTES     (48U)
 
 #define ADC12_SOC_CLOCK_CLK_DIV                    (2U)
 #define ADC12_SOC_CALIBRATION_WAITING_LOOP_CNT     (10)
@@ -141,8 +149,27 @@
 #define CAN_SOC_MAX_COUNT       (4U)
 
 /*
- * CAN Section
+ * UART Section
  */
 #define UART_SOC_FIFO_SIZE       (16U)
+
+/*
+ * SPI Section
+ */
+#define SPI_SOC_TRANSFER_COUNT_MAX  (512U)
+
+/*
+ * SDXC Section
+ */
+#define SDXC_SOC_MAX_COUNT      (2)
+/*
+ * JPEG Section
+ */
+/*jpg file sampling factor*/
+#define JPEG_SOC_SAMPLING_FORMAT_420               (0x2211U)
+#define JPEG_SOC_SAMPLING_FORMAT_422H              (0x2111U)
+#define JPEG_SOC_SAMPLING_FORMAT_422V              (0x1211U)
+#define JPEG_SOC_SAMPLING_FORMAT_444               (0x1111U)
+#define JPEG_SOC_SAMPLING_FORMAT_400               (0x2200U)
 
 #endif /* HPM_SOC_FEATURE_H */

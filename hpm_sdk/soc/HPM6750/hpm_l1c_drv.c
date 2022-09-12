@@ -90,25 +90,25 @@ void l1c_dc_writeback_all(void)
 
 void l1c_dc_fill_lock(uint32_t address, uint32_t size)
 {
-    //ASSERT_ADDR_SIZE(address, size);
+    ASSERT_ADDR_SIZE(address, size);
     l1c_op(HPM_L1C_CCTL_CMD_L1D_VA_LOCK, address, size);
 }
 
 void l1c_dc_invalidate(uint32_t address, uint32_t size)
 {
-    //ASSERT_ADDR_SIZE(address, size);
+    ASSERT_ADDR_SIZE(address, size);
     l1c_op(HPM_L1C_CCTL_CMD_L1D_VA_INVAL, address, size);
 }
 
 void l1c_dc_writeback(uint32_t address, uint32_t size)
 {
-    //ASSERT_ADDR_SIZE(address, size);
+    ASSERT_ADDR_SIZE(address, size);
     l1c_op(HPM_L1C_CCTL_CMD_L1D_VA_WB, address, size);
 }
 
 void l1c_dc_flush(uint32_t address, uint32_t size)
 {
-    //ASSERT_ADDR_SIZE(address, size);
+    ASSERT_ADDR_SIZE(address, size);
     l1c_op(HPM_L1C_CCTL_CMD_L1D_VA_WBINVAL, address, size);
 }
 

@@ -1,5 +1,134 @@
 # Change Log
 
+## [0.13.1] - 2022-08-23:
+
+Main changes since 0.13.0
+
+### Changed:
+  - Driver:I2S: update i2s drivers
+  - middleware: lwip: optimize variable_name definition
+  - samples: lwip: lwip_iperf: update readme files
+  - samples: lwip: common: arch: add LWIP_MEM_SECTION declartion
+
+### Fixed:
+  - samples: multicore: BOOT_HEADER was missing in multicore core0 example
+  - samples: jpeg: Fix encoding and decoding problem
+  - samples: audio codec: wav decoder: fix 32bit wave file playback
+  - I2S_DMA: fix wav channel not align problem
+  - i2s_interrupt: fix I2S FIFO overflow
+  - fix lack of interrupt claim for swi
+  - driver: watchdog: overflow
+  - Fix critical section logic issue in dma manager
+  - Fix the core1 application debugging issue
+
+## [0.13.0] - 2022-07-31:
+
+Main changes since 0.12.1
+
+### Changed:
+  - drivers: adc: fix sequence and preemption mode
+  - drivers: usb: automatically change transceiver type in host mode
+  - drivers: pwm: modify the interface for setting the pwm shadow register trigger function
+  - drivers: sdxc: driver improvement
+  - samples: jpeg demo update
+  - samples: motor_ctrl: Optimize motor control performance
+  - samples: motor_ctrl: Modify the pwm update method to be hardware triggered
+  - samples: audio_codec: wav: Modify the interface
+  - samples: audio_codec: add dao support
+  - samples: tinyusb: update all USB project names
+  - samples: adc: place DMA buffer in noncacheable
+  - components: usb: update two struct definitions for the hcd_data_t and the dcd_data_t
+  - middleware: littlevgl: update double buffer refresh approach.
+  - middleware: fatfs: enable exfat format
+  - middleware: fatfs: change 'USB' to lowercase
+  - middleware: hpm_math: remove cache operations from the ffa interface
+  - scripts: ses: update file path using $(HPM_SDK_BASE)
+
+### Fixed:
+  - drivers: gpiom: fix spelling errors in API names
+  - drivers: enet: fix ptp time offset update
+  - drivers: cam: fix store mode configuration
+  - drivers: can: Fix the issue can timestamp cannot be enabled
+  - drivers: gpio: incorrect return type gpio_get_port_interrupt_flags.
+  - middleware: audio_codec: decoder_wav: fix wav codec problem
+  - middleware: tinyusb: fix the alignment of _hcd_data
+  - soc: driver: clock: i2s get clock error
+  - soc: hpm_misc.h: fix incorrect system address mapping.
+  - soc: SVD files: fix SDP peripheral reset value problem
+  - soc: disable vector mode explicitly.
+  - boards: correct device name in ses project
+  - board: correct the printf format for frequency and register base
+  - python: fix ses project generation on windows
+  - samples: adc: fix not working in sequence mode and preemption mode
+  - ses: set obj path for common configuration.
+  - cmake: ses: put app source into separate category in ses.
+
+### Added:
+  - components: enet_phy: add rtl8211 driver
+  - components: hpm_spi: add initial SPI component
+  - components: add DMA Manager
+  - drivers: cam: add new API
+  - drivers: uart: add uart_set_baudrate API
+  - drivers: spi: update dma transfer API
+  - samples: tinyusb: host: add a hid demo
+  - samples: drivers: spi: add master_trans_large_amount_of_data example
+  - samples: decoder_wav: Add support for different bit rates and bits
+  - samples: drivers: audio: automatic acquisition of i2s clock frequency
+  - middleware: tinyusb: update portable file for USB host
+
+## [0.12.1] - 2022-07-01:
+
+Main changes since 0.12.0
+
+### Fixed:
+  - update lwipopt.h for updated enet driver
+
+## [0.12.0] - 2022-06-30:
+
+Tested with SES 6.32
+
+Main changes since 0.11.0
+
+### Changed:
+  - boards: hpm6360evk has been renamed to hpm6300evk
+  - boards: Use CSR_CYCLE in the clock_delay function
+  - soc: hpm_soc.h: include hpm_common.h
+  - driver: rename hpm_pmu_drv.c to hpm_pcfg_drv.h
+  - driver: spi: change to non-blocking interfaces
+  - driver: dma: update driver to adapt to different DMA instance constraints
+  - components: enet_phy: update dp83867 driver
+  - components: enet_phy: remove rtl8211 driver
+  - cmake: enable nano newlib by default
+  - cmake: move distclean to the beginning
+  - middleware: littlevgl enable PDMA by default
+  - middleware: tinyusb: upgrade to 0.13.0
+  - samples: tinyusb: device: cdc_msc: adjust buffer size
+  - samples: drivers: plic: use gpio toggle count as nested irq
+
+### Fixed:
+  - drivers: pwm: fix function name inconsistency bug
+  - drivers: enet: remove "board.h" in enet driver
+  - drivers: clock: Fix bugs in hpm6360 clock driver
+  - drivers: clock: returns wrong adc/dac clock in HPM6360
+  - drivers: dram: failed to configure 8bit mode.
+  - freertos: fix issue about running on core1
+  - boards: hpm6300evk pmp_entry set initial value
+  - middleware: littlevgl: fix pdma cache op issue
+  - middleware: littlevgl: fix doxygen markdown for pdma driver
+  - middleware: lvgl: ses: update ram linker.
+  - middleware: hpm_math: fix ffa cache size error
+  - samples: audio_codec: remove the wrong dependency
+  - samples: FATFS demo cannot support write/read if FATFS passes unaligned buffer address
+
+### Added:
+  - samples: add memstress and flash stress
+  - drivers: clock: add implement common delay function based on mcycle and mcycleh register
+  - boards: add hpm6300evk support
+  - boards: hpm6750evkmini: motor control support
+  - soc: add svd files
+  - middleware: lwip: iperf: enable iperf and add udp function
+  - samples: lwip: add lwip_iperf
+
 ## [0.11.0] - 2022-05-31:
 Main changes since 0.10.0-hpm6360-er
 

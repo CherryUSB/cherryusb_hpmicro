@@ -53,4 +53,9 @@ endif()
 
 endif()
 
-
+sdk_inc(third_party/fatfs-0.14/source)
+sdk_src(third_party/fatfs-0.14/source/diskio.c)
+sdk_src(third_party/fatfs-0.14/source/ff.c)
+sdk_src(third_party/fatfs-0.14/source/ffsystem.c)
+sdk_src(third_party/fatfs-0.14/source/ffunicode.c)
+sdk_src(third_party/fatfs-0.14/source/port/fatfs_usbh.c)

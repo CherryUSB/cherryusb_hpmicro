@@ -72,8 +72,67 @@ int cdc_acm_test(void)
     return ret;
 #endif
 }
-#if 0
+#if 1
 #include "ff.h"
+
+USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t read_write_buffer[25 * 100];
+
+FATFS fs;
+FIL fnew;
+UINT fnum;
+FRESULT res_sd = 0;
+
+int usb_msc_fatfs_test()
+{
+    const char *tmp_data = "cherryusb fatfs demo...\r\n";
+
+    USB_LOG_RAW("data len:%d\r\n", strlen(tmp_data));
+    for (uint32_t i = 0; i < 100; i++) {
+        memcpy(&read_write_buffer[i * 25], tmp_data, strlen(tmp_data));
+    }
+
+    USB_LOG_RAW("test fatfs write\r\n");
+    res_sd = f_mount(&fs, "2:", 1);
+    if (res_sd != FR_OK) {
+        USB_LOG_RAW("mount fail,res:%d\r\n", res_sd);
+        return -1;
+    }
+    res_sd = f_open(&fnew, "2:test.txt", FA_CREATE_ALWAYS | FA_WRITE);
+    if (res_sd == FR_OK) {
+        res_sd = f_write(&fnew, read_write_buffer, sizeof(read_write_buffer), &fnum);
+        if (res_sd == FR_OK) {
+            USB_LOG_RAW("write success, write len：%d\n", fnum);
+        } else {
+            USB_LOG_RAW("write fail\r\n");
+            goto unmount;
+        }
+        f_close(&fnew);
+    } else {
+        USB_LOG_RAW("open fail\r\n");
+        goto unmount;
+    }
+    USB_LOG_RAW("test fatfs read\r\n");
+
+    res_sd = f_open(&fnew, "2:test.txt", FA_OPEN_EXISTING | FA_READ);
+    if (res_sd == FR_OK) {
+        res_sd = f_read(&fnew, read_write_buffer, sizeof(read_write_buffer), &fnum);
+        if (res_sd == FR_OK) {
+            USB_LOG_RAW("read success, read len：%d\n", fnum);
+        } else {
+            USB_LOG_RAW("read fail\r\n");
+            goto unmount;
+        }
+        f_close(&fnew);
+    } else {
+        USB_LOG_RAW("open fail\r\n");
+        goto unmount;
+    }
+    f_mount(NULL, "2:", 1);
+    return 0;
+unmount:
+    f_mount(NULL, "2:", 1);
+    return -1;
+}
 #endif
 
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t partition_table[512];
@@ -86,7 +145,7 @@ int msc_test(void)
         USB_LOG_RAW("do not find /dev/sda\r\n");
         return -1;
     }
-#if 1
+#if 0
     /* get the partition table */
     ret = usbh_msc_scsi_read10(msc_class, 0, partition_table, 1);
     if (ret < 0) {
@@ -102,46 +161,8 @@ int msc_test(void)
     USB_LOG_RAW("\r\n");
 #endif
 
-#if 0
-    uint8_t *msc_buffer = usb_iomalloc(8192);
-    ret = usbh_msc_scsi_read10(msc_class, 0, msc_buffer, 16);
-    usb_iofree(msc_buffer);
-    // for (uint32_t i = 0; i < 1024; i++) {
-    //     if (i % 16 == 0) {
-    //         USB_LOG_RAW("\r\n");
-    //     }
-    //     USB_LOG_RAW("%02x ", msc_buffer[i]);
-    // }
-    // USB_LOG_RAW("\r\n");
-#endif
-
-#if 0
-
-    FATFS fs;
-    FIL fnew;
-    UINT fnum;
-    FRESULT res_sd = 0;
-    uint8_t *ReadBuffer;
-
-    ReadBuffer = usb_iomalloc(512);
-    f_mount(&fs, "2:", 1);
-    res_sd = f_open(&fnew, "2:test.c", FA_OPEN_EXISTING | FA_READ);
-    if (res_sd == FR_OK) {
-        res_sd = f_read(&fnew, ReadBuffer, 512, &fnum);
-        for (uint32_t i = 0; i < fnum; i++) {
-            if (i % 16 == 0) {
-                USB_LOG_RAW("\r\n");
-            }
-            USB_LOG_RAW("%02x ", ReadBuffer[i]);
-        }
-        USB_LOG_RAW("\r\n");
-        f_close(&fnew);
-        /*unmount*/
-        f_mount(NULL, "2:", 1);
-    } else {
-        USB_LOG_RAW("open error:%d\r\n", res_sd);
-    }
-    usb_iofree(ReadBuffer);
+#if 1
+    usb_msc_fatfs_test();
 #endif
     return ret;
 }
@@ -196,7 +217,7 @@ void usbh_device_unmount_done_callback(struct usbh_hubport *hport)
 static void usbh_class_test_thread(void *argument)
 {
     while (1) {
-        printf("hellworld\r\n");
+        printf("helloworld\r\n");
         usb_osal_msleep(1000);
         cdc_acm_test();
         msc_test();

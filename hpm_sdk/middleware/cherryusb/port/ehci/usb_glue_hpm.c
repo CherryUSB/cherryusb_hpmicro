@@ -3,7 +3,7 @@
 #include "hpm_soc.h"
 #include "hpm_usb_drv.h"
 
-#define USB_PHY_INIT_DELAY_COUNT  (16U) /**< a delay count for USB phy initialization */
+#define USB_PHY_INIT_DELAY_COUNT (16U) /**< a delay count for USB phy initialization */
 
 /* Initialize USB phy */
 static void usb_phy_init(USB_Type *ptr)

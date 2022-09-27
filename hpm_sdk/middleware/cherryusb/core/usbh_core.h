@@ -93,23 +93,6 @@ static inline void usbh_int_urb_fill(struct usbh_urb *urb,
     urb->arg = arg;
 }
 
-static inline void usbh_iso_urb_fill(struct usbh_urb *urb,
-                                     usbh_pipe_t pipe,
-                                     uint8_t *transfer_buffer,
-                                     uint32_t transfer_buffer_length,
-                                     uint32_t timeout,
-                                     usbh_complete_callback_t complete,
-                                     void *arg)
-{
-    urb->pipe = pipe;
-    urb->setup = NULL;
-    urb->transfer_buffer = transfer_buffer;
-    urb->transfer_buffer_length = transfer_buffer_length;
-    urb->timeout = timeout;
-    urb->complete = complete;
-    urb->arg = arg;
-}
-
 struct usbh_class_info {
     uint8_t match_flags; /* Used for product specific matches; range is inclusive */
     uint8_t class;       /* Base device class code */
@@ -160,9 +143,7 @@ struct usbh_hubport {
     const char *iManufacturer;
     const char *iProduct;
     const char *iSerialNumber;
-#if 0
     uint8_t* raw_config_desc;
-#endif
     USB_MEM_ALIGNX struct usb_setup_packet setup;
     struct usbh_hub *parent;
 };
@@ -182,12 +163,12 @@ struct usbh_hub {
     usb_slist_t hub_event_list;
 };
 
-int usbh_hport_activate_epx(usbh_pipe_t pipe, struct usbh_hubport *hport, struct usb_endpoint_descriptor *ep_desc);
+int usbh_hport_activate_epx(usbh_pipe_t *pipe, struct usbh_hubport *hport, struct usb_endpoint_descriptor *ep_desc);
 
 /* usb host transfer wrapper */
 
 /**
- * @brief Submit an bulk transfer to an endpoint.
+ * @brief Submit an control transfer to an endpoint.
  * This is a blocking method; this method will not return until the transfer has completed.
  * Default timeout is 500ms.
  *

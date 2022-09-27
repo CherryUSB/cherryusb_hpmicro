@@ -40,6 +40,7 @@ USB_NOCACHE_RAM_SECTION struct usbd_msc_cfg_priv {
     USB_MEM_ALIGNX struct CBW cbw;
     USB_MEM_ALIGNX struct CSW csw;
 
+    bool readonly;
     uint8_t sKey; /* Sense key */
     uint8_t ASC;  /* Additional Sense Code */
     uint8_t ASQ;  /* Additional Sense Qualifier */
@@ -56,12 +57,13 @@ USB_NOCACHE_RAM_SECTION struct usbd_msc_cfg_priv {
 static volatile uint8_t thread_op;
 static usb_osal_sem_t msc_sem;
 static usb_osal_thread_t msc_thread;
-static uint32_t current_byte_read;
+static volatile uint32_t current_byte_read;
 #endif
 
 static void usbd_msc_reset(void)
 {
     usbd_msc_cfg.stage = MSC_READ_CBW;
+    usbd_msc_cfg.readonly = false;
 }
 
 static int msc_storage_class_interface_request_handler(struct usb_setup_packet *setup, uint8_t **data, uint32_t *len)
@@ -365,6 +367,9 @@ static bool SCSI_modeSense6(uint8_t **data, uint32_t *len)
 
     uint8_t sense6[SCSIRESP_MODEPARAMETERHDR6_SIZEOF] = { 0x03, 0x00, 0x00, 0x00 };
 
+    if (usbd_msc_cfg.readonly) {
+        sense6[2] = 0x80;
+    }
     memcpy(*data, (uint8_t *)sense6, data_len);
     *len = data_len;
     return true;
@@ -669,7 +674,7 @@ static void usbd_msc_thread_memory_read_done(void)
     transfer_len = MIN(usbd_msc_cfg.nsectors * usbd_msc_cfg.scsi_blk_size, CONFIG_USBDEV_MSC_BLOCK_SIZE);
 
     usbd_ep_start_write(mass_ep_data[MSD_IN_EP_IDX].ep_addr,
-                        &usbd_msc_cfg.block_buffer[usbd_msc_cfg.scsi_blk_addr % usbd_msc_cfg.scsi_blk_size], transfer_len);
+                        usbd_msc_cfg.block_buffer, transfer_len);
 
     usbd_msc_cfg.start_sector += (transfer_len / usbd_msc_cfg.scsi_blk_size);
     usbd_msc_cfg.nsectors -= (transfer_len / usbd_msc_cfg.scsi_blk_size);
@@ -730,7 +735,7 @@ static void usbd_msc_thread_memory_write_done()
         usbd_msc_send_csw(CSW_STATUS_CMD_PASSED);
     } else {
         data_len = MIN(usbd_msc_cfg.nsectors * usbd_msc_cfg.scsi_blk_size, CONFIG_USBDEV_MSC_BLOCK_SIZE);
-        usbd_ep_start_read(mass_ep_data[MSD_OUT_EP_IDX].ep_addr, &usbd_msc_cfg.block_buffer[usbd_msc_cfg.scsi_blk_addr % usbd_msc_cfg.scsi_blk_size], data_len);
+        usbd_ep_start_read(mass_ep_data[MSD_OUT_EP_IDX].ep_addr, usbd_msc_cfg.block_buffer, data_len);
     }
 
     usb_osal_leave_critical_section(flags);
@@ -892,14 +897,14 @@ static void usbd_msc_thread(void *argument)
         switch (thread_op) {
             case MSC_THREAD_OP_READ_MEM:
                 data_len = MIN(usbd_msc_cfg.nsectors * usbd_msc_cfg.scsi_blk_size, CONFIG_USBDEV_MSC_BLOCK_SIZE);
-                if (usbd_msc_sector_read(usbd_msc_cfg.start_sector, usbd_msc_cfg.block_buffer, usbd_msc_cfg.scsi_blk_size) != 0) {
+                if (usbd_msc_sector_read(usbd_msc_cfg.start_sector, usbd_msc_cfg.block_buffer, data_len) != 0) {
                     SCSI_SetSenseData(SCSI_KCQHE_UREINRESERVEDAREA);
                 }
                 usbd_msc_thread_memory_read_done();
                 break;
             case MSC_THREAD_OP_WRITE_MEM:
                 data_len = MIN(usbd_msc_cfg.nsectors * usbd_msc_cfg.scsi_blk_size, CONFIG_USBDEV_MSC_BLOCK_SIZE);
-                if (usbd_msc_sector_write(usbd_msc_cfg.start_sector, usbd_msc_cfg.block_buffer, usbd_msc_cfg.scsi_blk_size) != 0) {
+                if (usbd_msc_sector_write(usbd_msc_cfg.start_sector, usbd_msc_cfg.block_buffer, data_len) != 0) {
                     SCSI_SetSenseData(SCSI_KCQHE_WRITEFAULT);
                 }
                 usbd_msc_thread_memory_write_done();
@@ -945,9 +950,14 @@ struct usbd_interface *usbd_msc_alloc_intf(const uint8_t out_ep, const uint8_t i
     msc_thread = usb_osal_thread_create("usbd_msc", CONFIG_USBDEV_MSC_STACKSIZE, CONFIG_USBDEV_MSC_PRIO, usbd_msc_thread, NULL);
     if (msc_thread == NULL) {
         USB_LOG_ERR("no enough memory to alloc msc thread\r\n");
-        return;
+        return NULL;
     }
 #endif
 
     return intf;
+}
+
+void usbd_msc_set_readonly(bool readonly)
+{
+    usbd_msc_cfg.readonly = readonly;
 }

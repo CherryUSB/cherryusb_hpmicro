@@ -221,13 +221,16 @@ static int parse_config_descriptor(struct usbh_hubport *hport, struct usb_config
                     cur_alt_setting = intf_desc->bAlternateSetting;
                     cur_ep_num = intf_desc->bNumEndpoints;
                     cur_ep = 0;
-                    if (cur_iface > CONFIG_USBHOST_MAX_INTERFACES) {
+                    if (cur_iface > (CONFIG_USBHOST_MAX_INTERFACES - 1)) {
+                        USB_LOG_ERR("Interface num overflow\r\n");
                         return -ENOMEM;
                     }
-                    if (cur_alt_setting > CONFIG_USBHOST_MAX_INTF_ALTSETTINGS) {
+                    if (cur_alt_setting > (CONFIG_USBHOST_MAX_INTF_ALTSETTINGS - 1)) {
+                        USB_LOG_ERR("Interface altsetting num overflow\r\n");
                         return -ENOMEM;
                     }
                     if (cur_ep_num > CONFIG_USBHOST_MAX_ENDPOINTS) {
+                        USB_LOG_ERR("Endpoint num overflow\r\n");
                         return -ENOMEM;
                     }
 #if 0
@@ -333,13 +336,29 @@ static void usbh_print_hubport_info(struct usbh_hubport *hport)
     }
 }
 
+static int usbh_get_default_mps(int speed)
+{
+    switch (speed) {
+        case USB_SPEED_LOW: /* For low speed, we use 8 bytes */
+            return 8;
+        case USB_SPEED_FULL: /* For full or high speed, we use 64 bytes */
+        case USB_SPEED_HIGH:
+            return 64;
+        case USB_SPEED_SUPER: /* For super speed , we must use 512 bytes */
+        case USB_SPEED_SUPER_PLUS:
+            return 512;
+        default:
+            return 64;
+    }
+}
+
 int usbh_hport_activate_ep0(struct usbh_hubport *hport)
 {
     struct usbh_endpoint_cfg ep0_cfg = { 0 };
 
     ep0_cfg.ep_addr = 0x00;
     ep0_cfg.ep_interval = 0x00;
-    ep0_cfg.ep_mps = 0x08;
+    ep0_cfg.ep_mps = usbh_get_default_mps(hport->speed);
     ep0_cfg.ep_type = USB_ENDPOINT_TYPE_CONTROL;
     ep0_cfg.hport = hport;
 
@@ -349,9 +368,11 @@ int usbh_hport_activate_ep0(struct usbh_hubport *hport)
 
 int usbh_hport_deactivate_ep0(struct usbh_hubport *hport)
 {
+#ifndef CONFIG_USBHOST_XHCI
     if (hport->dev_addr > 0) {
         usbh_free_devaddr(&g_usbh_bus.devgen, hport->dev_addr);
     }
+#endif
     if (hport->ep0) {
         usbh_pipe_free(hport->ep0);
     }
@@ -361,7 +382,7 @@ int usbh_hport_deactivate_ep0(struct usbh_hubport *hport)
     return 0;
 }
 
-int usbh_hport_activate_epx(usbh_pipe_t pipe, struct usbh_hubport *hport, struct usb_endpoint_descriptor *ep_desc)
+int usbh_hport_activate_epx(usbh_pipe_t *pipe, struct usbh_hubport *hport, struct usb_endpoint_descriptor *ep_desc)
 {
     struct usbh_endpoint_cfg ep_cfg = { 0 };
 
@@ -386,7 +407,6 @@ int usbh_enumerate(struct usbh_hubport *hport)
 {
     struct usb_interface_descriptor *intf_desc;
     struct usb_setup_packet *setup;
-    uint8_t descsize;
     int dev_addr;
     uint16_t ep_mps;
     int ret;
@@ -394,29 +414,15 @@ int usbh_enumerate(struct usbh_hubport *hport)
 #define USB_REQUEST_BUFFER_SIZE 256
     setup = &hport->setup;
 
-    if ((hport->speed == USB_SPEED_SUPER) || (hport->speed == USB_SPEED_SUPER_PLUS)) {
-        /* For super speed , we must use 512 bytes */
-        ep_mps = 512;
-        descsize = 8;
-    } else if (hport->speed == USB_SPEED_LOW) {
-        /* For low speed, we use 8 bytes */
-        ep_mps = 8;
-        descsize = 8;
-    } else {
-        /* For full or high speed, we use 64 bytes */
-        ep_mps = 64;
-        descsize = 8;
-    }
-
-    /* Configure EP0 with the initial maximum packet size */
-    usbh_ep0_pipe_reconfigure(hport->ep0, 0, ep_mps, hport->speed);
+    /* Configure EP0 with the default maximum packet size */
+    usbh_hport_activate_ep0(hport);
 
     /* Read the first 8 bytes of the device descriptor */
     setup->bmRequestType = USB_REQUEST_DIR_IN | USB_REQUEST_STANDARD | USB_REQUEST_RECIPIENT_DEVICE;
     setup->bRequest = USB_REQUEST_GET_DESCRIPTOR;
     setup->wValue = (uint16_t)((USB_DESCRIPTOR_TYPE_DEVICE << 8) | 0);
     setup->wIndex = 0;
-    setup->wLength = descsize;
+    setup->wLength = 8;
 
     ret = usbh_control_transfer(hport->ep0, setup, ep0_request_buffer);
     if (ret < 0) {
@@ -424,20 +430,31 @@ int usbh_enumerate(struct usbh_hubport *hport)
         goto errout;
     }
 
-    parse_device_descriptor(hport, (struct usb_device_descriptor *)ep0_request_buffer, descsize);
+    parse_device_descriptor(hport, (struct usb_device_descriptor *)ep0_request_buffer, 8);
 
     /* Extract the correct max packetsize from the device descriptor */
     ep_mps = ((struct usb_device_descriptor *)ep0_request_buffer)->bMaxPacketSize0;
 
-    /* And reconfigure EP0 with the correct maximum packet size */
+    /* Reconfigure EP0 with the correct maximum packet size */
     usbh_ep0_pipe_reconfigure(hport->ep0, 0, ep_mps, hport->speed);
 
+#ifdef CONFIG_USBHOST_XHCI
+    extern int usbh_get_xhci_devaddr(usbh_pipe_t * pipe);
+
+    /* Assign a function address to the device connected to this port */
+    dev_addr = usbh_get_xhci_devaddr(hport->ep0);
+    if (dev_addr < 0) {
+        USB_LOG_ERR("Failed to allocate devaddr,errorcode:%d\r\n", ret);
+        goto errout;
+    }
+#else
     /* Assign a function address to the device connected to this port */
     dev_addr = usbh_allocate_devaddr(&g_usbh_bus.devgen);
     if (dev_addr < 0) {
         USB_LOG_ERR("Failed to allocate devaddr,errorcode:%d\r\n", ret);
         goto errout;
     }
+#endif
 
     /* Set the USB device address */
     setup->bmRequestType = USB_REQUEST_DIR_OUT | USB_REQUEST_STANDARD | USB_REQUEST_RECIPIENT_DEVICE;
@@ -510,9 +527,19 @@ int usbh_enumerate(struct usbh_hubport *hport)
         goto errout;
     }
 
-    parse_config_descriptor(hport, (struct usb_configuration_descriptor *)ep0_request_buffer, wTotalLength);
+    ret = parse_config_descriptor(hport, (struct usb_configuration_descriptor *)ep0_request_buffer, wTotalLength);
+    if (ret < 0) {
+        USB_LOG_ERR("Parse config fail\r\n");
+        goto errout;
+    }
     USB_LOG_INFO("The device has %d interfaces\r\n", ((struct usb_configuration_descriptor *)ep0_request_buffer)->bNumInterfaces);
-
+    hport->raw_config_desc = usb_malloc(wTotalLength);
+    if (hport->raw_config_desc == NULL) {
+        ret = -ENOMEM;
+        USB_LOG_ERR("No memory to alloc for raw_config_desc\r\n");
+        goto errout;
+    }
+    memcpy(hport->raw_config_desc, ep0_request_buffer, wTotalLength);
 #ifdef CONFIG_USBHOST_GET_STRING_DESC
     /* Get Manufacturer string */
     setup->bmRequestType = USB_REQUEST_DIR_IN | USB_REQUEST_STANDARD | USB_REQUEST_RECIPIENT_DEVICE;
@@ -601,7 +628,10 @@ errout:
     if (ret < 0) {
         usbh_hport_deactivate_ep0(hport);
     }
-
+    if (hport->raw_config_desc) {
+        usb_free(hport->raw_config_desc);
+        hport->raw_config_desc = NULL;
+    }
     return ret;
 }
 
@@ -612,11 +642,11 @@ struct usbh_hubport *usbh_find_hubport(uint8_t dev_addr)
     usb_slist_for_each(hub_list, &hub_class_head)
     {
         struct usbh_hub *hub = usb_slist_entry(hub_list, struct usbh_hub, list);
-        for (int port = 0; port < hub->hub_desc.bNbrPorts; port++) {
-            hport = &hub->child[port - 1];
+        for (uint8_t port = 0; port < hub->hub_desc.bNbrPorts; port++) {
+            hport = &hub->child[port];
             if (hport->connected) {
                 if (hport->dev_addr == dev_addr) {
-                    return &hub->child[port - 1];
+                    return &hub->child[port];
                 }
             }
         }
@@ -632,7 +662,7 @@ void *usbh_find_class_instance(const char *devname)
     usb_slist_for_each(hub_list, &hub_class_head)
     {
         struct usbh_hub *hub = usb_slist_entry(hub_list, struct usbh_hub, list);
-        for (int port = 0; port < hub->hub_desc.bNbrPorts; port++) {
+        for (uint8_t port = 0; port < hub->hub_desc.bNbrPorts; port++) {
             hport = &hub->child[port];
             if (hport->connected) {
                 for (uint8_t itf = 0; itf < hport->config.config_desc.bNumInterfaces; itf++) {
@@ -754,14 +784,20 @@ int lsusb(int argc, char **argv)
         usb_slist_for_each(i, &hub_class_head)
         {
             struct usbh_hub *hub = usb_slist_entry(i, struct usbh_hub, list);
-            for (uint8_t port = 0; port < hub->hub_desc.bNbrPorts; port++) {
-                hport = &hub->child[port - 1];
-                if (hport->connected) {
-                    USB_LOG_RAW("/: Hub %02u,VID:PID 0x%04x:0x%04x\r\n",
-                                hub->index,
-                                hport->device_desc.idVendor,
-                                hport->device_desc.idProduct);
 
+            if (hub->is_roothub) {
+                USB_LOG_RAW("/: Hub %02u, ports=%u, is roothub\r\n", hub->index, hub->hub_desc.bNbrPorts);
+            } else {
+                USB_LOG_RAW("/: Hub %02u, ports=%u, mounted on Hub %02u:Port %u\r\n",
+                            hub->index,
+                            hub->hub_desc.bNbrPorts,
+                            hub->parent->parent->index,
+                            hub->parent->port);
+            }
+
+            for (uint8_t port = 0; port < hub->hub_desc.bNbrPorts; port++) {
+                hport = &hub->child[port];
+                if (hport->connected) {
                     for (uint8_t i = 0; i < hport->config.config_desc.bNumInterfaces; i++) {
                         if (hport->config.intf[i].class_driver->driver_name) {
                             USB_LOG_RAW("    |__Port %u,Port addr:0x%02x,If %u,ClassDriver=%s\r\n",
@@ -781,7 +817,7 @@ int lsusb(int argc, char **argv)
         {
             struct usbh_hub *hub = usb_slist_entry(i, struct usbh_hub, list);
             for (uint8_t port = 0; port < hub->hub_desc.bNbrPorts; port++) {
-                hport = &hub->child[port - 1];
+                hport = &hub->child[port];
                 if (hport->connected) {
                     USB_LOG_RAW("Hub %02u,Port %u,Port addr:0x%02x,VID:PID 0x%04x:0x%04x\r\n",
                                 hub->index,
